@@ -463,29 +463,108 @@ def all_segs():
     sto('seg_e')
 
 
+def all_reduced():
+    labels['const_1'] = RAM_BASE
+    labels['t_1'] = RAM_BASE + 1
+    labels['t_2'] = RAM_BASE + 2
+    labels['t_3'] = RAM_BASE + 3
+    labels['t_4'] = RAM_BASE + 4
+    labels['t_5'] = RAM_BASE + 5
+    one()
+    sto('const_1')
+    ld('A')
+    xor('C')
+    sto('t_1')
+    xor('B')
+    sto('t_4')
+    ld('B')
+    xor('D')
+    sto('t_2')
+    xor('C')
+    sto('t_5')
+
+    or_('t_4')
+    sto('seg_g')
+    xor('const_1')
+    or_('t_1')
+    xor('const_1')
+    sto('t_1')
+
+    ld('t_5')
+    or_('t_2')
+    sto('t_5')
+
+    ld('t_4')
+    xor('t_3')
+    sto('t_4')
+
+    ld('t_2')
+    or_('t_3')
+    or_('t_1')
+    sto('t_2')
+
+    ld('t_3')
+    or_('t_4')
+    xor('const_1')
+    xor('A')
+    sto('t_3')
+
+    ld('t_1')
+    or_('D')
+    and_('t_4')
+    xor('const_1')
+    sto('seg_d')
+
+    ld('t_1')
+    or_('t_3')
+    sto('seg_f')
+
+    ld('t_3')
+    and_('B')
+    sto('t_4')
+
+    ld('t_2')
+    xor('A')
+    xor('const_1')
+    sto('seg_e')
+
+    ld('t_1')
+    and_('D')
+    or_('t_4')
+    xor('const_1')
+    sto('seg_b')
+
+    one()
+    xor('t_5')
+    or_('t_2')
+    xor('t_4')
+    sto('seg_c')
+
+    one()
+    xor('A')
+    and_('t_5')
+    or_('t_3')
+    sto('seg_a')
+
+
 # build the actual code table
-init__c_ne_d()
-all_segs()
-# seg_a()
-# seg_b()
-# seg_c()
-# seg_d()
-# seg_e()
-# seg_f()
-# seg_g()
+# init__c_ne_d()
+# all_segs()
+all_reduced()
 _HALT()
 
-# output the code table (for debug)
-print('')
-print('CODE:')
-pprint(list(zip(
-    range(len(instrs)),
-    instrs,
-    [
-        f'{addr} = {_resolve_addr(addr)}'
-        for addr in addrs
-    ]
-)))
+def show_code_table():
+    # output the code table (for debug)
+    print('')
+    print('CODE:')
+    pprint(list(zip(
+        range(len(instrs)),
+        instrs,
+        [
+            f'{addr} = {_resolve_addr(addr)}'
+            for addr in addrs
+        ]
+    )))
 
 #
 # Test runs code
@@ -498,47 +577,55 @@ def set_inputs(x):
         bit = 1 if x & mask else 0
         inputs[3 - i] = bit
 
-
-# Debug run contols
-# dbg_each_input = True
-dbg_each_input = False
+# Debug run controls
+dbg_each_input = True
+# dbg_each_input = False
 
 show_7s = True
 # show_7s = False
 
-catch_result_errors = True
+# catch_result_errors = True
+catch_result_errors = False
 
-for i in range(16):
-    if dbg_each_input:
-        print(f'*** next input code={i} ')
+single_step = False
+# single_step = True
 
-    set_inputs(i)
-    if dbg_each_input:
-        print('BEFORE: ' + showstate())
+def exercise():
+    for i in range(16):
+        if dbg_each_input:
+            print(f'*** next input code={i} ')
 
-    # neither of these should be needed: it should set every seg, every time!
-    # outputs = [0 for _ in outputs]
-    # outputs = [1 for _ in outputs]
+        set_inputs(i)
+        if dbg_each_input:
+            print('BEFORE: ' + showstate())
 
-    run_code(step=False, showsteps=False)
+        # neither of these should be needed: it should set every seg, every time!
+        # outputs = [0 for _ in outputs]
+        # outputs = [1 for _ in outputs]
 
-    if dbg_each_input:
-        print('AFTER: ' + showstate())
+        run_code(step=single_step, showsteps=False)
 
-    if i%4 == 0:
-        print('-')
-    print(f' {i:02x} {inputs[:4]} -> {outputs}')
+        if dbg_each_input:
+            print('AFTER: ' + showstate())
 
-    if show_7s:
-        print(disp_7seg(outputs))
+        if i%4 == 0:
+            print('-')
+        print(f' {i:02x} {inputs[:4]} -> {outputs}')
 
-    exp_segs_result = seg_nums_usage[:, i].astype(int)
-    ok = np.all(exp_segs_result == outputs[:7])
-    if catch_result_errors:
-        assert ok
-    if not ok:
-        print(f'  *** FAIL: expected={exp_segs_result}')
+        if show_7s:
+            print(disp_7seg(outputs))
 
-    if dbg_each_input:
-        print('')
+        exp_segs_result = seg_nums_usage[:, i].astype(int)
+        ok = np.all(exp_segs_result == outputs[:7])
+        if catch_result_errors:
+            assert ok
+        if not ok:
+            print(f'  *** FAIL: expected={exp_segs_result}')
 
+        if dbg_each_input:
+            print('')
+
+
+if __name__ == '__main__':
+    show_code_table()
+    exercise()

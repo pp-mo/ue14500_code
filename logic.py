@@ -1,4 +1,30 @@
 import numpy as np
+from ue14500_sim import disp_7seg, seg_nums_usage
+
+"""
+Notes on NOR equivalence.
+without dedicating a reg to '1', we can't easily invert the current output
+nor(a,b) = a==0.b==0
+requires ability to NOT the result of an OR
+  - or to load complements (not so easy)
+where result goes to temporary, can be done ...
+ld(a)
+or(b)
+xor(const_1)
+
+ld(a)
+or(b)
+sto(tmp)
+one()
+xor(tmp)
+
+one()
+xor(a)
+sto(tmp)
+one()
+xor(b)
+and(tmp)
+"""
 
 def ttas(n_bits, shape=None):
     # Construct a full n-bit truth-table with a given shape
@@ -123,31 +149,11 @@ def seg_e():
     pa(full)
 
 
-def disp_7seg(outputs):
-    # Turn an output array into a string 'displaying' 7-segments
-    bit_outputs = [
-        '#' if bit else '_'
-        for bit in outputs
-    ]
-    lines = """
-       00
-     5    1
-     5    1
-       66
-     4    2
-     4    2
-       33
-    """
-    for i_bit in range(7):
-        lines = lines.replace(f'{i_bit}', bit_outputs[i_bit])
-    return lines
-
-
 # seg_e()
 def unpick():
     a, b, c, d =  ttas(4, (4, 4))
     A, B, C, D = a, b, c, d
-    
+
     AxC = A ^ C
     BnD = B & D
     AxD = A ^ D
@@ -206,17 +212,214 @@ def unpick():
         seg_f,
         seg_g,
     ]
+    return segs
+
+
+def unpick_reduced_beforeramfolding():
+
+    # need to think about NOR = ~(x | y) == XY=00
+    """
+
+nor(a,b) = a==0 . b==0
+nor(a, nor(b,c))
+
+nor(x, nor(a,b))
+== x==0 . nor(a,b)==0
+== ~x . ~nor(a,b)
+== ~x. (a | b)
+    """
+
+    a, b, c, d = ttas(4, (4, 4))
+    A, B, C, D = a, b, c, d
+
+    AxC = A ^ C             # ** 2 = 1 3
+    BnD = B & D             # ** 3 = 1 1 2
+    AxD = A ^ D             # ** 3 = 1 2 3
+
+    X11 = AxC ^ B           #    2 = 2 2
+    X12 = BnD ^ C           #    2 = 2 2
+    # O13 = BnD | AxD       #    1 = 5
+
+    # N21 = ~(X11 | X12)      #    2 = 3 out
+    # ***NEEDED***
+    X22 = X11 ^ AxD         #    2 = 3 7
+    # N23 = ~(X12 | BnD)      #    2 = 3 7
+    # N23 = ~X12 & ~BnD
+    # ***NEEDED***
+    nN23 = (X12 | BnD)
+
+    _t = ~(X11 | X12)  # was N21
+    OUT1 = _t
+    # ***NEEDED***
+    N31 = ~(_t | AxC)       #    4 = 5 6 7 7
+    # N32 = ~(X22 | AxD)      #    1 = 4
+    # N33 = ~(N23 | A)        #    1 = 8
+
+    _t = ~(X22 | AxD)       # was N32
+    # ***NEEDED***
+    X41 = _t ^ A            #    3 = 7 7 8
+
+    _t = BnD | AxD          # was O13
+    # ***NEEDED***
+    O51 = N31 | _t          #    2 = 7 7
+
+    _t = N31 | D           # was O61
+    OUT2 = _t & X22        # was A71
+    OUT3 = ~(N31 | X41)      # was N72
+    # A73 = N31 & D           #    1 = 8
+
+    # ***NEEDED***
+    A74 = X41 & B           #    2 = 8 8
+    OUT5 = O51 ^ A           # was X75
+    # N76 = ~(O51 | N23)      #    1 = 8
+
+    _t = N31 & D            # was A73
+    OUT4 = _t | A74         # was O81
+    # _t = ~(O51 | N23)       # was N76
+    _t = ~O51 & nN23
+    OUT6 = A74 ^ _t          # was X82
+    # _t = ~(N23 | A)         # was N33
+    _t = ~A & nN23
+    OUT7 = ~(X41 | _t)       # was N83
+
+    o1 = ~OUT1
+    o2 = ~OUT2
+    o3 = ~OUT3
+    o4 = ~OUT4
+    o5 = ~OUT5
+    o6 = ~OUT6
+    o7 = ~OUT7
+
+    seg_a = o7
+    seg_b = o4
+    seg_c = o6
+    seg_d = o2
+    seg_e = o5
+    seg_f = o3
+    seg_g = o1
+
+    segs = [
+        seg_a,
+        seg_b,
+        seg_c,
+        seg_d,
+        seg_e,
+        seg_f,
+        seg_g,
+    ]
+    return segs
+
+
+def unpick_reduced():
+
+    # need to think about NOR = ~(x | y) == XY=00
+    """
+
+nor(a,b) = a==0 . b==0
+nor(a, nor(b,c))
+
+nor(x, nor(a,b))
+== x==0 . nor(a,b)==0
+== ~x . ~nor(a,b)
+== ~x. (a | b)
+    """
+
+    a, b, c, d = ttas(4, (4, 4))
+    A, B, C, D = a, b, c, d
+
+    t_1 = A ^ C             # t1=AxC:  ** 2 = 1 3
+    t_2 = B & D             # t2=BnD:  ** 3 = 1 1 2
+    t_3 = A ^ D             # t3=AxD:  ** 3 = 1 2 3
+    t_4 = t_1 ^ B           # t1=AxC: t4=X11:  2 = 2 2
+    t_5 = t_2 ^ C           # t2=BnD: t5=X12  2 = 2 2
+
+    _t = (t_4 | t_5)  # was N21 : t4=X11: t5=X12
+    seg_g = _t
+    _t = ~_t
+    # ***NEEDED***
+    t_1 = ~(_t | t_1)       # t1 WAS=AxC NOW=N31:   4 = 5 6 7 7
+
+    # ***NEEDED***
+    t_5 = (t_5 | t_2)      # t2=BnD: t5 WAS=X12 NOW=nN23
+
+    # ***NEEDED***
+    t_4 = t_4 ^ t_3         # t3=AxD: t4 WAS=X11 NOW=X22:   2 = 3 7
+
+    _t = t_2 | t_3          # t2=BnD: t3=AxD: was O13
+    t_2 = 'now-unused'  # was BnD
+
+    # ***NEEDED***
+    t_2 = t_1 | _t          # t1=N31: t2=O51   2 = 7 7
+
+    _t = ~(t_4 | t_3)       # t3=AxD: t4=X22: was N32
+    # ***NEEDED***
+    t_3 = _t ^ A            # t3=X41:   3 = 7 7 8
+
+    _t = t_1 | D           # t1=N31: was O61
+    seg_d = ~(_t & t_4)        # t4=X22: was A71
+    t_4 = 'now-unused'  # was X22
+
+    seg_f = t_1 | t_3      # t1=N31: t3=X41: was N72
+
+    # ***NEEDED***
+    t_4 = t_3 & B           # t3=X41: t4=A74:  2 = 8 8
+
+    seg_e = ~(t_2 ^ A)           # t2=O51: was X75
+
+    _t = t_1 & D            # t1=N31: was A73
+    seg_b = ~(_t | t_4)         #  t4=A74: was O81
+
+    # _t = ~t_2 & t_5     # t5=nN23: t2=O51:
+    # seg_c = ~(t_4 ^ _t)          # t4=A74: was X82
+    _t = t_2 | ~t_5
+    seg_c = _t ^ t_4
+
+    _t = ~A & t_5       # t5=nN23
+    seg_a = (t_3 | _t)       # was N83 : t3=X41
+
+    segs = [
+        seg_a,
+        seg_b,
+        seg_c,
+        seg_d,
+        seg_e,
+        seg_f,
+        seg_g,
+    ]
+    return segs
+
+
+def check_result(segs, display_all=False):
     for seg in segs:
         pa(seg.flatten())
 
     for i in range(16):
-        print('')
-        print(f'N = {i:02x}')
+        if display_all:
+            print('')
+            print(f'N = {i:02x}')
+
         outputs = [
             seg.flatten()[i]
             for seg in segs
         ]
-        # outputs = np.array(outputs)
-        print(disp_7seg(outputs))
 
-unpick()
+        if display_all:
+            print(disp_7seg(outputs))
+
+        # Also check against known-correct answers
+        exp_segs_result = seg_nums_usage[:, i].astype(int)
+        # EXCEPT that the map calculated here is different...
+        if i == 9:
+            # special case with slightly different expected answer
+            assert np.all(exp_segs_result == [1, 1, 1, 1, 0, 1, 1])
+            exp_segs_result[3] = 0
+        ok = np.all(exp_segs_result == outputs[:7])
+        if not ok:
+            out_ints = np.array(outputs).astype(int)
+            print(f'  diff@{i:02x} : expect={exp_segs_result} got={out_ints}')
+            assert ok
+
+
+if __name__ == '__main__':
+    segs = unpick_reduced()
+    check_result(segs, display_all=False)
