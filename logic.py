@@ -1,6 +1,7 @@
 import numpy as np
 
 def ttas(n_bits, shape=None):
+    # Construct a full n-bit truth-table with a given shape
     n = 2 ** n_bits
     if shape is None:
         shape = (n,)
@@ -11,6 +12,7 @@ def ttas(n_bits, shape=None):
     ]
 
 def pa(a):
+    # Print a boolean array as ints [[0, 1, 0]] for compactness
     print(a.astype(int))
 
 def seg_a():
