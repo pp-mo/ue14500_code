@@ -1,0 +1,169 @@
+===============
+Logic designs for independent segment functions
+==============
+
+# All segs : tested truth-table
+segs_tt_text = """
+    1011 0111 1110 1011
+    1111 1001 1110 0100
+    1101 1111 1111 0100
+    1011 0110 1101 1110
+    1010 0010 1011 1111
+    1000 1110 1111 1011
+    0011 1110 1111 0111
+"""
+
+
+======================
+a 1011 0111 1110 1011
+
+     CD=00 01 10 11
+AB=00    1  0  1  1
+   01    0  1  1  1
+   10    1  1  1  0
+   11    1  0  1  1
+
+out =  (AxB) . ((CxD) + (a!=c)) # a!=c == AxC
+    + ~(AxB) . (~CxD + C)
+
+a: split on AxB
+
+===================
+b 1111 1001 1110 0100
+     CD=00 01 10 11
+AB=00    1  1  1  1
+   01    1  0  0  1
+   10    1  1  1  0
+   11    0  1  0  0
+
+out =  ~A.~B
+     + ~A.B  . ~CxD
+     + A.~B  . ~(C.D)  # == CxD | ~D
+     + A.B   . ~C.D  # CxD . D
+
+b: 4way split on AB
+
+====================
+c 1101 1111 1111 0100
+     CD=00 01 10 11
+AB=00    1  1  0  1
+   01    1  1  1  1
+   10    1  1  1  1
+   11    0  1  0  0
+
+out = AxB ...
+      + ~A . (~CxD + D)
+      +  A . (CxD.D)
+
+c: AxB override=1, or split on A
+
+==================
+:seg_d
+d 1011 0110 1101 1110
+     CD=00 01 10 11
+AB=00    1  0  1  1
+   01    0  1  1  0
+   10    1  1  0  1
+   11    1  1  1  0
+
+out =  ~A.~B . (~CxD + C)
+     + ~A.B  . (CxD)
+     + A.~B  . (~CxD + D)
+     + A.B   . (CxD + ~C)
+
+d: 4way split on AB
+
+============
+e 1010 0010 1011 1111
+     CD=00 01 10 11
+AB=00    1  0  1  0
+   01    0  0  1  0
+   10    1  0  1  1
+   11    1  1  1  1
+
+out =   ~A.~B . ~D
+     +  ~A.B  . C.~D   # C.~D == CxD . C
+     +  A.~B  . ~(~C.D)  # ~(~C.D) == ~CxD | C
+     +  A.B
+
+    =   ~C.~D . ~(~A.B) ==  (~AxB | A)
+      + ~C.D  . A.B
+      + C.~D
+      + C.D   . A
+
+e: 4way split on AB  ((or slightly simpler on CD??))
+
+============
+f 1000 1110 1111 1011
+     CD=00 01 10 11
+AB=00    1  0  0  0
+   01    1  1  1  0
+   10    1  1  1  1
+   11    1  0  1  1
+
+out =   ~C.~D
+      + ~C.D . AxB
+      + C.~D . A+B
+      + CD . A
+
+OR
+out =   ~A.~B  . ~C.~D  # ~CxD . ~C
+      + ~A.B   . ~(C.D) # CxD + ~C
+      +  A.~B
+      +  A.B   . ~(~C.D) # ~CxD + C
+
+f: 4way split on CD  ((OR on AB, not quite so simple)
+
+==================
+g 0011 1110 1111 0111
+     CD=00 01 10 11
+AB=00    0  0  1  1
+   01    1  1  1  0
+   10    1  1  1  1
+   11    0  1  1  1
+
+out = ~A.~B . C +
+      ~A.B  . ~(C.D)  # ~(C.D) == CxD | ~C
+      A.~B +
+      A.B. (C+D)
+
+g: 4way split on AB
+
+
+========================
+Summary of how independent seg functions work.
+a: split on AxB
+b: 4way split on AB
+c: AxB override=1, or split on A
+d: 4way split on AB
+e: 4way split on AB  ((or slightly simpler on CD??))
+f: 4way split on CD  ((OR on AB, not quite so simple)
+g: 4way split on AB
+
+
+==================
+CD output patterns used
+ [# = instructions needed to calculate]
+
+AxB=0
+  a 1011          x
+.A0
+  c 1101          c
+.A1
+  c 0100          ~x
+
+AB00
+  d 1011 [2(3)]   x
+  f 1000 [5t]     Q
+AB01
+  f 1110 [3]      z
+  e 0010 [2]      ~c
+AB10
+  b 1110 [2]      z
+  d 1101 [3]      c
+  e 1011 [3]      x
+AB11
+  b 0100 [2]      ?~x
+  d 1110 [3]      z
+  f 1011 [3]      x
+  g 0111 [2]      ~Q
