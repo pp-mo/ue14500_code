@@ -1,0 +1,32 @@
+AxB = A ^ B
+CnD = C & D
+AxD = A ^ D
+
+X11 = AxB ^ B
+X12 = CnD ^ C
+O13 = CnD | AxD
+
+N21 = ~(X11 | X12)
+X22 = X11 ^ AxD
+N23 = ~(X12 | CnD)
+
+N31 = ~(N21 | AxB)
+N32 = ~(X22 | AxD)
+N33 = ~(N23 | A)
+
+X41 = N32 ^ A
+
+O51 = N31 | O13
+
+O61 = N31 | D
+
+A71 = O61 & X22
+N72 = ~(N31 | X41)
+A73 = N31 & D
+A74 = X41 & B
+X75 = O51 ^ O13
+N76 = ~(O51 | N23)
+
+O81 = A73 | A74
+X82 = A74 ^ N76
+N83 = ~(X41 | N33)
