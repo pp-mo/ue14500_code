@@ -166,6 +166,12 @@ def op_one(addr=None):
     state.pc += 1
 
 @op
+def op_DEBUG(addr):
+    # print(f'DEBUG OPS:    state: ', showstate())
+    print(f'**DEBUG({inputs}) : {addr}={state.rr}')
+    state.pc += 1
+
+@op
 def op_skz(addr=None):
     resolved_addr = _resolve_addr(addr)
     if  resolved_addr is not None:
@@ -265,6 +271,9 @@ def _HALT():
     # - since 'STOP' is not an instruction in the real processor
     _add_instr('stop', 0)
 
+def _DEBUG(name):
+    _LABEL(name)
+    _add_instr('DEBUG', name)
 
 #
 # Code definitions for this example
@@ -279,11 +288,7 @@ labels['C'] = 2
 labels['D'] = 3
 
 # ram
-labels['c_ne_d'] = RAM_BASE + 1
-# labels['tmp'] = RAM_BASE + 2
-labels['patt_0111'] = RAM_BASE + 3
-labels['patt_1011'] = RAM_BASE + 4
-labels['patt_1110'] = RAM_BASE + 5
+# see the code function
 
 #outputs
 labels['seg_a'] = 0
@@ -297,173 +302,19 @@ labels['seg_g'] = 6
 #
 # routines to build various code sections (i.e. add them to code tables)
 #
-def init__c_ne_d():
-    ld('C')
-    xor('D')
-    sto('c_ne_d')
-
-
-def all_segs():
-    """
-    A function that calculates all segments at once,
-    sharing work where possible.
-    """
-
-    # first pre-calculate some common terms based on specific patterns in the
-    # inputs CD, which can be re-used with advantage
-    ld('C')
-    or_('D')
-    sto('patt_0111')
-
-    one()
-    xor('c_ne_d')
-    or_('C')
-    sto('patt_1011')
-
-    one()
-    xor('C')
-    or_('c_ne_d')
-    sto('patt_1110')
-
-    #
-    # First, split on AxB / ~(AxB)
-    #  : calculate 'a' and 'c' segments this way.
-    ld('A')
-    xor('B')
-    skz('x__aeqb')
-    jmp('x__aneb')
-
-    # AxB == 0 cases for segs a+c
-    _LABEL('x__aeqb')
-    ld('patt_1011')
-    sto('seg_a')
-
-    ld('A')
-    skz('xc__aeqb_a0')
-    jmp('xc__aeqb_a1')
-
-    _LABEL('xc__aeqb_a0')
-    one()
-    xor('c_ne_d')
-    or_('D')
-    # 1101
-    jmp('x__setc')
-
-    _LABEL('xc__aeqb_a1')
-    ld('D')
-    and_('c_ne_d')
-    # 0100
-    jmp('x__setc')
-
-    # AxB == 1 cases for segs a+c
-    _LABEL('x__aneb')
-    ld('A')
-    xor('C')
-    or_('c_ne_d')
-    sto('seg_a')
-    one()  # AxB --> 1
-
-    _LABEL('x__setc')
-    sto('seg_c')
-
-    #
-    # Now split all the other segs (bdefg) by AB values
-    #
-    ld('A')
-    skz('x__a0')
-    jmp('x__a1')
-
-    _LABEL('x__a0')
-    ld('B')
-    skz('x__ab00')
-    jmp('x__ab01')
-
-    #
-    # AB=00 case, segs bdefg
-    #
-    _LABEL('x__ab00')
-    one()
-    sto('seg_b')
-
-    xor('patt_0111')  # using rr=1 from prev
-    sto('seg_f')
-
-    ld('patt_1011')
-    sto('seg_d')
-
-    ld('C')
-    sto('seg_g')
-
-    one()
-    xor('D')
-    jmp('x__set_e_DONE')
-
-    #
-    # AB=01 case, segs bdefg
-    #
-    _LABEL('x__ab01')
-    xor('c_ne_d')  # using rr==1 from jump
-    sto('seg_b')
-
-    ld('c_ne_d')
-    sto('seg_d')
-
-    ld('patt_1110')
-    sto('seg_f')
-    sto('seg_g')  # same value
-
-    ld('c_ne_d')
-    and_('C')
-    # 0010
-    jmp('x__set_e_DONE')
-
-    _LABEL('x__a1')
-    ld('B')
-    skz('x__ab10')
-    jmp('x__ab11')
-
-    #
-    # AB=10 case, segs bdefg
-    #
-    _LABEL('x__ab10')
-    one()
-    sto('seg_f')
-    sto('seg_g')
-
-    xor('c_ne_d')  # using rr=1 from prev
-    or_('D')
-    # 1101
-    sto('seg_d')
-
-    ld('patt_1110')
-    sto('seg_b')   # NB CxD | ~C used elsewhere...
-
-    ld('patt_1011')
-    jmp('x__set_e_DONE')
-
-    #
-    # AB=11 case, segs bdefg
-    #
-    _LABEL('x__ab11')
-    xor('patt_1011')  # using rr=1 from jump
-    sto('seg_b')
-
-    ld('patt_1110')
-    sto('seg_d')
-
-    ld('patt_1011')
-    sto('seg_f')
-
-    ld('patt_0111')
-    sto('seg_g')
-
-    one()  # seg_e == 1 for AB=11
-
-    _LABEL('x__set_e_DONE')
-    sto('seg_e')
-
-
 def all_reduced():
+    """
+    A shorter calculation based on a shared possibly-optimal logic circuit.
+    This may *not* be optimal anyway, as the circuit uses ON=0, so we are
+    inverting all outputs, which adds a few more XORs than it removes.
+    But it's probably *fairly close*.
+
+    66 instructions, not including the STOP.
+    Compares with 24 2-input gates in the original.
+
+    Also compared to 87
+
+    """
     labels['const_1'] = RAM_BASE
     labels['t_1'] = RAM_BASE + 1
     labels['t_2'] = RAM_BASE + 2
@@ -472,23 +323,30 @@ def all_reduced():
     labels['t_5'] = RAM_BASE + 5
     one()
     sto('const_1')
+
     ld('A')
     xor('C')
     sto('t_1')
     xor('B')
     sto('t_4')
+
     ld('B')
-    xor('D')
+    and_('D')
     sto('t_2')
     xor('C')
     sto('t_5')
 
     or_('t_4')
     sto('seg_g')
+
     xor('const_1')
     or_('t_1')
     xor('const_1')
     sto('t_1')
+
+    ld('A')
+    xor('D')
+    sto('t_3')
 
     ld('t_5')
     or_('t_2')
@@ -548,9 +406,10 @@ def all_reduced():
 
 
 # build the actual code table
-# init__c_ne_d()
-# all_segs()
-all_reduced()
+from old_separate_seg_functions import init__c_ne_d, all_segs
+init__c_ne_d()
+all_segs()
+# all_reduced()
 _HALT()
 
 def show_code_table():
@@ -578,12 +437,12 @@ def set_inputs(x):
         inputs[3 - i] = bit
 
 # Debug run controls
-dbg_each_input = True
-# dbg_each_input = False
+# dbg_each_input = True
+dbg_each_input = False
 
 show_7s = True
 # show_7s = False
-
+#
 # catch_result_errors = True
 catch_result_errors = False
 
@@ -603,13 +462,14 @@ def exercise():
         # outputs = [0 for _ in outputs]
         # outputs = [1 for _ in outputs]
 
+        if i%4 == 0:
+            print('-')
+
         run_code(step=single_step, showsteps=False)
 
         if dbg_each_input:
             print('AFTER: ' + showstate())
 
-        if i%4 == 0:
-            print('-')
         print(f' {i:02x} {inputs[:4]} -> {outputs}')
 
         if show_7s:
@@ -617,10 +477,10 @@ def exercise():
 
         exp_segs_result = seg_nums_usage[:, i].astype(int)
         ok = np.all(exp_segs_result == outputs[:7])
-        if catch_result_errors:
-            assert ok
         if not ok:
-            print(f'  *** FAIL: expected={exp_segs_result}')
+            print(f'  *** FAIL @{i:02x}: expected={exp_segs_result} got={outputs}')
+            if catch_result_errors:
+                assert ok
 
         if dbg_each_input:
             print('')

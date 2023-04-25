@@ -335,6 +335,7 @@ nor(x, nor(a,b))
 
     _t = (t_4 | t_5)  # was N21 : t4=X11: t5=X12
     seg_g = _t
+
     _t = ~_t
     # ***NEEDED***
     t_1 = ~(_t | t_1)       # t1 WAS=AxC NOW=N31:   4 = 5 6 7 7
