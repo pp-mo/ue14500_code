@@ -406,10 +406,10 @@ def all_reduced():
 
 
 # build the actual code table
-from old_separate_seg_functions import init__c_ne_d, all_segs
-init__c_ne_d()
-all_segs()
-# all_reduced()
+# from old_separate_seg_functions import init__c_ne_d, all_segs
+# init__c_ne_d()
+# all_segs()
+all_reduced()
 _HALT()
 
 def show_code_table():
