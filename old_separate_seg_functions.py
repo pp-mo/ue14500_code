@@ -242,6 +242,7 @@ def seg_g():
 from ue14500_sim import RAM_BASE, labels
 
 def init__c_ne_d():
+    labels['tmp'] = RAM_BASE
     labels['c_ne_d'] = RAM_BASE + 1
     ld('C')
     xor('D')
@@ -414,11 +415,23 @@ def all_segs():
 if __name__ == '__main__':
     # Just build the 'old' code table + debug-output it,
     # So we see what it looked like
+
+    # common setup routine
     init__c_ne_d()
+
+    # # older form with separate calcs --> 220 instructions
+    # seg_a()
+    # seg_b()
+    # seg_c()
+    # seg_d()
+    # seg_e()
+    # seg_f()
+    # seg_g()
+
+    # manually optimised all-in-one --> 173 instructions
     all_segs()
+
     _HALT()
 
     from ue14500_sim import show_code_table
     show_code_table()
-
-    # NOTE: old table used 173 instructions
