@@ -311,8 +311,8 @@ def all_reduced():
 
     66 instructions, not including the STOP.
     Compares with 24 2-input gates in the original.
-
-    Also compared to 87
+    For original circuit see, for instance :
+        https://electronics.stackexchange.com/a/369736
 
     """
     labels['const_1'] = RAM_BASE
@@ -321,6 +321,7 @@ def all_reduced():
     labels['t_3'] = RAM_BASE + 3
     labels['t_4'] = RAM_BASE + 4
     labels['t_5'] = RAM_BASE + 5
+
     one()
     sto('const_1')
 
@@ -406,9 +407,6 @@ def all_reduced():
 
 
 # build the actual code table
-# from old_separate_seg_functions import init__c_ne_d, all_segs
-# init__c_ne_d()
-# all_segs()
 all_reduced()
 _HALT()
 

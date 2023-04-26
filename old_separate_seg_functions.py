@@ -1,6 +1,8 @@
 from ue14500_sim import (
     ld, sto, one, xor, and_, or_, xor, skz, jmp, _LABEL, _HALT
 )
+from ue14500_sim import RAM_BASE, labels
+
 
 # Routines for calculating individual segment functions
 # These have been replaced by 'all_segs', but are retained for reference
@@ -239,8 +241,6 @@ def seg_g():
 ##################################
 # Other older routines, now removed from main 'ue14500_sim' code
 
-from ue14500_sim import RAM_BASE, labels
-
 def init__c_ne_d():
     labels['tmp'] = RAM_BASE
     labels['c_ne_d'] = RAM_BASE + 1
@@ -419,7 +419,7 @@ if __name__ == '__main__':
     # common setup routine
     init__c_ne_d()
 
-    # # older form with separate calcs --> 220 instructions
+    # older form with separate calcs --> 200 instructions
     # seg_a()
     # seg_b()
     # seg_c()
@@ -428,10 +428,11 @@ if __name__ == '__main__':
     # seg_f()
     # seg_g()
 
-    # manually optimised all-in-one --> 173 instructions
+    # manually optimised all-in-one --> 153 instructions
     all_segs()
 
     _HALT()
 
-    from ue14500_sim import show_code_table
+    from ue14500_sim import show_code_table, exercise
     show_code_table()
+    exercise()
